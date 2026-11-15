@@ -2205,6 +2205,9 @@ class Presenter {
         // time 0 made the average hours late)
         static uint32_t hurried = 0;
         int64_t late = item.atNs ? presentStart - item.atNs : 0;
+        if (item.atNs) {
+          g_interpLateNs.store(std::max<int64_t>(late, 0), std::memory_order_relaxed);
+        }
         hurried += item.atNs == 0;
         lateSum += late, lateMax = std::max(lateMax, late);
         if (lastNs && presentStart - lastNs < 100'000'000) {
@@ -6345,10 +6348,12 @@ void Present(HostTexture* frontBuffer) {
     }
     // At most a frame's pictures waiting to be shown (the swapchain's images
     // last; plume's acquire lets go of the swapchain between short waits).
+    int64_t roomWaited = 0;  // (this frame's wait for room in the presenter)
     if ((interp || InterpEnabled()) && !hide) {
       int64_t roomStart = SteadyNs();
       g_presenter.WaitFor(3);
       int64_t took = SteadyNs() - roomStart;
+      roomWaited = took;
       parts.room += took;
       roomWaitNs += took;
       roomWaitMaxNs = std::max(roomWaitMaxNs, took);
@@ -6381,8 +6386,20 @@ void Present(HostTexture* frontBuffer) {
         const RenderCommandList* lists[] = {g_prologueLists[frame].get()};
         g_queue->executeCommandLists(lists, 1);
       }
+      // The presenter behind (this frame waited for room there: pictures
+      // come as fast as it shows them, so what waits stays waiting): this
+      // frame's pictures between left out, and it catches up by one.
+      // (paced frames only: a slow screen's pictures are spread by the clock, and wait there)
+      const bool behind = interp->paced && roomWaited > 4'000'000;
+      if (behind) {
+        static uint64_t count = 0;
+        if (++count <= 10 || count % 600 == 0) {
+          REXLOG_INFO("video: interp: the presenter is behind ({:.1f} ms waited for room): a frame's pictures "
+                      "between left out ({} times)", double(roomWaited) / 1e6, count);
+        }
+      }
       size_t k = 0;
-      for (; k < recorded; k++) {
+      for (; k < recorded && !behind; k++) {
         auto& semaphore = g_interpAcquire[frame][k];
         auto& interpList = g_interpLists[frame][k];
         auto& fence = g_interpFences[frame][k];
@@ -6461,7 +6478,12 @@ void Present(HostTexture* frontBuffer) {
       if (InterpEnabled() && interp && interp->paced && !starved) {
         // Each at its time on the display's grid.
         int64_t readyNs = SteadyNs();
-        int64_t lag = readyNs - interp->presentNs;
+        // The time to make them, without the wait for room in the presenter:
+        // that wait comes of the pictures' own times, and counted here it
+        // fed itself (a queue once full put every frame's pictures later,
+        // which kept it full: the render thread waiting 15 ms a frame, the
+        // pictures 30 ms behind, for the rest of the session).
+        int64_t lag = std::max<int64_t>(readyNs - interp->presentNs - roomWaited, 0);
         int64_t kept = g_interpReadyLagNs.load();
         g_interpReadyLagNs = lag > kept ? lag : kept - (kept - lag) / 64;  // (the slowest, let go slowly)
         static uint64_t late = 0, shownPaced = 0;

@@ -43,6 +43,7 @@ std::shared_future<std::shared_ptr<InterpFrames>> g_interpLastJob;
 // From a frame's present to its pictures handed to the presenter (the build
 // and the recording), the slowest lately: the pictures' first time is after it.
 std::atomic<int64_t> g_interpReadyLagNs{4'000'000};
+std::atomic<int64_t> g_interpLateNs{0};
 namespace {
 
 using Upload = InterpUpload;
@@ -970,8 +971,13 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
       // a frame after its pictures are made, went out with the next frame's,
       // pictures in twos 0-4 ms apart.
       const double perFrame = 1e9 / 60.0 / double(step);
-      const bool whole =
-          !UnderGamescope() && perFrame >= 0.9 && std::fabs(perFrame - std::round(perFrame)) < 0.1;
+      // (NG2_TEST_PINNED=1: under gamescope too, for the headless tests)
+      static const bool pinnedTest = [] {
+        const char* v = std::getenv("NG2_TEST_PINNED");
+        return v && v[0] == '1';
+      }();
+      const bool whole = (!UnderGamescope() || pinnedTest) && perFrame >= 0.9 &&
+                         std::fabs(perFrame - std::round(perFrame)) < 0.1;
       if (whole) {
         g.baseNs = g.gridNs = 0;
         const int64_t ready = presentNs + lag;  // (its pictures made: none goes out sooner)
@@ -985,7 +991,18 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
         // there, the game at 53 and its menus slow to answer.)
         g.latencyNs = std::min<int64_t>(int64_t(g.intervalNs), window);
         const int64_t target = ready + g.latencyNs;
-        int64_t start = g.endNs;
+        // The times follow the display, not its nominal rate: where the
+        // presenter shows the pictures after their time (a display at
+        // 119.98 Hz paced as the mode's 120.00: 0.2 ms later each second,
+        // 20 ms of latency after a minute and a half), the start goes an
+        // eighth of that later each frame, until they are shown on time. The
+        // frames then fall behind their target by a step now and then, and
+        // one gets no picture between.
+        // (each one taken once: a late one after a hitch would go on moving
+        // the times; and only with a picture between to give up: a frame of
+        // one step can't make up what its start is put back)
+        const int64_t late = std::clamp<int64_t>(g_interpLateNs.exchange(0), 0, 50'000'000);
+        int64_t start = g.endNs ? g.endNs + (std::llround(perFrame) >= 2 ? late / 8 : 0) : 0;
         if (!start || std::abs(target - window - start) > 2 * window) {
           start = target - window;  // (the first, or far off after a hitch: anew)
           g.pacedAnew++;
@@ -1070,6 +1087,9 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
         }
         g.baseNs = base;
         g.windowNs = window;
+        if (g.gridNs) {  // (the grid by the display as it shows them, as the pinned times)
+          g.gridNs += std::clamp<int64_t>(g_interpLateNs.exchange(0), 0, 50'000'000) / 8;
+        }
         if (!g.gridNs || std::abs(g.gridNs - base) > 4 * window) {
           g.gridNs = base + 1;
         }
@@ -1819,6 +1839,8 @@ void ResetInterp(bool on) {
   g_interp.slowRun = 0;
   g_interp.slow = false;
   g_interpAutoDivider = 1;
+  g_interpLateNs = 0;
+  g_interpReadyLagNs = 4'000'000;  // (as at the start: what it had grown to stayed through off and on)
   g_interpCapture.current.clear();
   g_interpCapture.palettes.clear();
   g_interpCapture.paletteIndex.clear();

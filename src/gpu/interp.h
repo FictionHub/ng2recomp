@@ -185,6 +185,10 @@ void ResetInterp(bool on);  // switched: everything kept from earlier frames dro
 extern std::atomic<uint32_t> g_interpPictureCap;
 extern std::shared_future<std::shared_ptr<InterpFrames>> g_interpLastJob;
 extern std::atomic<int64_t> g_interpReadyLagNs;
+// How long after its time the presenter last showed a paced picture (it shows
+// one only once the one before is on the screen): what the display is behind
+// the pictures' times.
+extern std::atomic<int64_t> g_interpLateNs;
 
 // video.cpp
 int64_t InterpRefreshNs();  // the display's refresh, 0 not known
