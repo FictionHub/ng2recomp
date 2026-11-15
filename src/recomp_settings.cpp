@@ -126,7 +126,7 @@ constexpr uint32_t kPlayTimeName = 0x2F;
 constexpr uint32_t kNoteSlot = 0x39;
 constexpr std::u16string_view kAllWeaponsNote = u"Weapons given stay in your saves, even turned off.";
 // Frame Interpolation's description (placed with the labels).
-constexpr std::u16string_view kInterpNote = u"Experimental, for displays above 60 Hz. Adds input latency.";
+constexpr std::u16string_view kInterpNote = u"Experimental: pictures between the game's frames.";
 // The Music Test's track names: room for our texts.
 constexpr uint32_t kSpareFirst = 0x63, kSpareEnd = 0x97;
 constexpr uint32_t kSlotCount = 0x98;  // past the last index used
