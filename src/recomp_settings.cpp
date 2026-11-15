@@ -126,7 +126,7 @@ constexpr uint32_t kPlayTimeName = 0x2F;
 constexpr uint32_t kNoteSlot = 0x39;
 constexpr std::u16string_view kAllWeaponsNote = u"Weapons given stay in your saves, even turned off.";
 // Frame Interpolation's description (placed with the labels).
-constexpr std::u16string_view kInterpNote = u"Experimental: pictures between the game's frames.";
+constexpr std::u16string_view kInterpNote = u"Experimental, for displays above 60 Hz. Adds input latency.";
 // The Music Test's track names: room for our texts.
 constexpr uint32_t kSpareFirst = 0x63, kSpareEnd = 0x97;
 constexpr uint32_t kSlotCount = 0x98;  // past the last index used
@@ -209,9 +209,11 @@ constexpr Setting kSettings[] = {
     // The guest's vblanks on the display's refreshes (gpu/native_gpu.cpp).
     {u"Frame Pacing", {u"Auto", u"Timer"}, 2, "frame_pacing", Kind::kLevel},
     // Pictures made between the game's frames: one each refresh of the
-    // display (Full Rate) or each second one (Half Rate; each one below
-    // 120 Hz, so never fewer than the game's 60), or one between each two
-    // of the game's frames (2x: 120 for its 60); gpu/interp.cpp.
+    // display (Full Rate) or each second one (Half Rate; each one at 120 Hz
+    // and below, where a second one would leave none between), or one
+    // between each two of the game's frames (2x: 120 for its 60);
+    // gpu/interp.cpp. Nothing on a 60 Hz display but where the game itself
+    // runs at 30 or less.
     // (Short: a longer choice is squeezed narrow to fit.)
     {u"Frame Interpolation", {u"Off", u"Full Rate", u"Half Rate", u"2x"}, 4,
      "frame_interpolation", Kind::kLevel},
