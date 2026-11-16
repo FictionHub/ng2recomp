@@ -5220,12 +5220,13 @@ void Draw(uint32_t device, uint32_t primitive, uint32_t startVertex, uint32_t co
   uint32_t interpBoneAddress = 0, interpBoneSize = 0;  // the bone palette (NG2_INTERP)
   // Which mesh this is (NG2_INTERP): its vertex and index data and range, the
   // same a frame on whatever the camera did (0: inline data, not known).
-  uint64_t interpMesh = 0;
+  uint64_t interpMesh = 0, interpMeshAlt = 0;
   if (!inlineData && InterpEnabled()) {
     interpMesh = (uint64_t(startVertex) << 32 | count) * 0x9E3779B97F4A7C15ull ^ startIndex;
     if (indexed) {
       if (uint32_t indexBuffer = guest::Load32(device + 0x308C)) {
         interpMesh = interpMesh * 0x100000001B3ull ^ guest::Load32(indexBuffer + 24);
+        interpMeshAlt = interpMesh;
       }
     }
   }
@@ -5347,6 +5348,7 @@ void Draw(uint32_t device, uint32_t primitive, uint32_t startVertex, uint32_t co
     captured.boneAddress = interpBoneAddress;
     captured.boneSize = interpBoneSize;
     captured.mesh = interpMesh;
+    captured.meshAlt = interpMesh ? interpMeshAlt : 0;
   }
 
   Upload sharedUpload = Allocate(sizeof(shared));
