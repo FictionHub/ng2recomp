@@ -1197,6 +1197,11 @@ RenderFormat ResolveTextureFormat(xenos::TextureFormat format) {
       // (the game over screen keeps the last picture of play in one, #88:
       // without a host texture its resolves were lost and it read black)
       return RenderFormat::B5G6R5_UNORM;
+    case xenos::TextureFormat::k_8:
+      // (Ninja Cinema's Classic Film Filter keeps the last picture in one and
+      // shows it on the frames it doesn't draw the scene: without a host
+      // texture those frames were black, #123)
+      return RenderFormat::R8_UNORM;
     default:
       return RenderFormat::UNKNOWN;
   }
@@ -2681,9 +2686,10 @@ HostTexture* GetResolveDestination(uint32_t address, const xenos::xe_gpu_texture
       }
       return nullptr;
     }
-    // Depth textures read their single channel everywhere, as Xenos does.
+    // Depth textures, and k_8's (#123), read their single channel
+    // everywhere, as Xenos does.
     if (fetch.format == xenos::TextureFormat::k_24_8 ||
-        fetch.format == xenos::TextureFormat::k_24_8_FLOAT) {
+        fetch.format == xenos::TextureFormat::k_24_8_FLOAT || fetch.format == xenos::TextureFormat::k_8) {
       RenderTextureViewDesc viewDesc = RenderTextureViewDesc::Texture2D(format);
       viewDesc.mipLevels = 1;
       viewDesc.componentMapping = RenderComponentMapping(RenderSwizzle::R, RenderSwizzle::R,
