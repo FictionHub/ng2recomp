@@ -258,8 +258,8 @@ NG2_PROFILE; in a heavy fight frame the renderer's share was 12-21 ms.
 - The Vulkan work on a thread of ours ("Render Commands"): the hooks still read guest memory on
   the game's render thread, everything for Vulkan is queued (a RenderCommandList that copies its
   arguments) and replayed there.
-- D3D's writers of constant packets (sub_83767670, sub_83767A10) are skipped with the native
-  renderer: nothing reads its command stream any more.
+- D3D's writers of state packets (sub_83767670, sub_83767A10, sub_83767730, sub_837678B0) are
+  skipped with the native renderer: nothing reads its command stream any more.
 - The texture memo indexed by address: a resolve (about 30 a frame) no longer walks the whole memo.
   The stage timers read the CPU's time stamp counter instead of clock_gettime.
 - File reads the game asks to be asynchronous run on an I/O thread (SDK patch 0016): with reads
