@@ -182,6 +182,8 @@ endif()
 
 # Native renderer: plume (Unleashed Recompiled's RHI), Vulkan only, with the
 # Wayland surface support from patches/plume.
+# (the SDK's Vulkan headers, newer than plume's: VK_EXT_present_timing)
+set(PLUME_VULKAN_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/rexglue-sdk/thirdparty/vulkan-headers/include)
 add_subdirectory(thirdparty/plume EXCLUDE_FROM_ALL)
 if(UNIX AND NOT APPLE)
     find_package(X11 REQUIRED)

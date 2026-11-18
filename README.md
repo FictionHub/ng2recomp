@@ -144,6 +144,10 @@ be writable (not inside Program Files). Delete `portable.txt` to go back.
 `NG2_GAME_DIR=<folder>` starts with that game folder instead of the remembered one (Linux; on
 Windows pass `--game_data_root=<folder>`).
 
+`NG2_UPLOAD_HOST=1` keeps all the data the game sends to the graphics card each frame in system
+memory, `=0` in the card's memory. Without it the game measures at start how fast it can write to
+the card, and on a slow link (a card on fewer PCIe lanes) keeps that data in system memory.
+
 ## Settings
 
 Everything is in the game's own menus: **RECOMP SETTINGS** on the title menu, and **Recomp
@@ -163,7 +167,8 @@ each defaults to the game's own behaviour.
   Windows, where the driver lacks it (AMD), it follows the monitor's own refreshes; else it runs as
   Timer). Timer is the default: use it on a variable-refresh display, G-Sync or FreeSync.
   In the Steam Deck's Game Mode (and any game run through gamescope) Auto acts as Timer: there it
-  gave me uneven frame pacing
+  gave me uneven frame pacing. Input Latency Low there keeps the game's frames on the display's
+  refreshes by itself, whichever Frame Pacing is set
 - **Cheats**: Infinite Health; Infinite Ninpo (each cast's ninpo filled back); Unlock Costumes;
   All Weapons and Ninpo (Level 1 or 3: every melee and projectile weapon, ninpo and ammo, given at a
   new game, a load and a stage's start; what it gives stays in the save when it's turned off, as
@@ -177,8 +182,8 @@ each defaults to the game's own behaviour.
   game over menu); Auto Chapter Screen (chapter cards and mission briefings go on by themselves);
   Texture LOD Bias (the game's, 0 or -1: less shimmer at higher render scales)
 - **Gameplay**: Input Latency (Low: no finished frame waits for the screen; needs
-  VK_KHR_present_wait; in the Steam Deck's Game Mode, and any game run through gamescope, it acts as
-  Standard, as Low made frames come in pairs there); Unlock Difficulties (every path in New Game and Mission Mode, at once
+  VK_KHR_present_wait; under gamescope, as in the Steam Deck's Game Mode, it needs
+  VK_EXT_present_timing, which SteamOS has from 3.10, and acts as Standard without it); Unlock Difficulties (every path in New Game and Mission Mode, at once
   either way)
 
 In the in-game menu, a page with six settings has no Restore Defaults row (the list has no room
