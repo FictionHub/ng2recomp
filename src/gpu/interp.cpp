@@ -1073,7 +1073,7 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
         // (near: within half the least way between two copies, so a copy
         // that moves a little keeps its own, and one new in view beside a
         // copy gone from it doesn't take that one's)
-        float near = 0.05f;
+        float nearBy = 0.05f;
         if (before.size() <= 64) {
           float spacing = 0.6f;
           for (size_t a = 0; a < was.size(); a++) {
@@ -1084,7 +1084,7 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
               }
             }
           }
-          near = 0.5f * spacing;
+          nearBy = 0.5f * spacing;
         }
         for (uint32_t i : now) {
           Mat4 m;
@@ -1097,7 +1097,7 @@ std::shared_ptr<InterpFrames> BuildInterpFrames(uint32_t slot, uint64_t frameCou
               nearest = std::min(nearest, matOff(m, was[k]));
             }
           }
-          if (nearest >= near) {
+          if (nearest >= nearBy) {
             for (size_t r = 0; r < g.current[i].registers.size(); r++) {
               if (g.current[i].registers[r] == 24) {
                 strangerReg[i] = int32_t(r);
