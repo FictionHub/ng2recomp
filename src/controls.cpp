@@ -9,7 +9,7 @@
 //   W A S D    left stick (move)          mouse       right stick (camera)
 //   left mouse, J   X (quick attack)      right mouse, K   Y (strong attack)
 //   Space      A (jump)                   E           B (projectile weapon)
-//   F          Y + B (ninpo)              C           A + X (water run)
+//   F          Y + B (ninpo)              C           A + X (wind run)
 //   Shift      LT (block)                 Q, middle mouse   RT
 //   R          LB                         V           RB
 //   Z / X      stick clicks               Tab         BACK

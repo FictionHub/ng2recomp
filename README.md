@@ -194,7 +194,7 @@ each defaults to the game's own behaviour.
   (the camera stays under your control during Obliteration Techniques, Ultimate Techniques and
   throws)
 - **Controls**: a table of the game's actions, each with two keys (or mouse buttons) and a
-  controller button. Confirm on a cell, then press the key or the button (Ninpo and Water Run take
+  controller button. Confirm on a cell, then press the key or the button (Ninpo and Wind Run take
   one button or two held together); X clears a cell, Y gives the row its defaults, and Default
   Controls brings everything back. A key or button given to an action leaves the one that had it.
   The sticks, the d-pad, START and BACK stay the controller's, and the menus keep A and B (Return
@@ -259,7 +259,7 @@ Delete deletes a save.
 | W A S D | move | mouse | camera |
 | left mouse, J | quick attack (X) | right mouse, K | strong attack (Y) |
 | Space | jump (A) | E | projectile (B) |
-| F | ninpo (Y + B) | C | water run (A + X) |
+| F | ninpo (Y + B) | C | wind run (A + X) |
 | Shift | block (LT) | Q, middle mouse | RT |
 | R | LB | V | RB |
 | Z / X | stick clicks | Tab / Escape | Back / Start |

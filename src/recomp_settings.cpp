@@ -1435,7 +1435,7 @@ void RefillPage(PPCContext& ctx, uint8_t* base, const Page& page) {
 // place, on the title's Options screen and in the in-game list, as the NGB
 // recomp's: an action a row, with its two keys and its controller button
 // (rebind.h), then Default Controls. Confirm on a cell waits for a key, or a
-// button (two together for Ninpo and Water Run); X clears it, Y gives the
+// button (two together for Ninpo and Wind Run); X clears it, Y gives the
 // row its defaults.
 constexpr uint32_t kMergedPad = 0x83C08100;  // the pads' buttons: +0 held, +8 pressed
 constexpr uint32_t kButtonMasks[8] = {0x10, 0x20, 0x40, 0x80, 0x1000, 0x2000, 0x4000, 0x8000};
