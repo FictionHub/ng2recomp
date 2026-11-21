@@ -62,6 +62,8 @@ set(NG2_SOURCES
     src/debug_waits.cpp
     src/room_jump.cpp
     src/cheats.cpp
+    src/rebind.cpp
+    src/menu_mouse.cpp
     src/frame_wait.cpp
     src/dlc.cpp
     src/mods.cpp
