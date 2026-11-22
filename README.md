@@ -337,8 +337,7 @@ the native build instead, quicker but only for the machine that built it.
 
 The Windows build is cross-compiled from Linux after the native one: `packaging/windows/build.sh`
 (clang and lld against Microsoft's C runtime and Windows SDK from
-[xwin](https://github.com/Jake-Shadle/xwin), `xwin --accept-license splat --output ~/.xwin`; plume
-also needs its `contrib/D3D12MemoryAllocator` submodule there). It builds the SDK for Windows, fetches
+[xwin](https://github.com/Jake-Shadle/xwin), `xwin --accept-license splat --output ~/.xwin`). It builds the SDK for Windows, fetches
 FFmpeg's Windows build, and packs `out/windows/NinjaGaiden2-windows-x64.zip`.
 
 The 64-bit ARM Linux build is cross-compiled the same way, after the native one:

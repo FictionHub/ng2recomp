@@ -35,6 +35,13 @@ if(NOT REXGLUE_ENTRYPOINT_GENERATED_SOURCES)
     if(NOT NG2_CODEGEN_TOOL)
         get_target_property(NG2_CODEGEN_TOOL rex::rexglue IMPORTED_LOCATION)
     endif()
+endif()
+if(NOT REXGLUE_ENTRYPOINT_GENERATED_SOURCES AND NOT EXISTS "${NG2_CODEGEN_TOOL}")
+    # (no built generator to run now: a Debug-only SDK, or one built in this
+    # tree; the first build generates the code, and CMake run again takes it in)
+    message(WARNING "No ReXGlue code generator to run at configure time: build once, "
+                    "then run CMake again before the second build")
+elseif(NOT REXGLUE_ENTRYPOINT_GENERATED_SOURCES)
     message(STATUS "Generating the recompiled code (first configure of this tree)")
     execute_process(
         COMMAND "${NG2_CODEGEN_TOOL}" codegen "${CMAKE_CURRENT_SOURCE_DIR}/ng2_manifest.toml"
