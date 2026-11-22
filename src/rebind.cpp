@@ -682,3 +682,39 @@ REX_HOOK_RAW(sub_823B7470) {
   }
   Store32(input + 16, made);
 }
+
+// The game's own "an action's button held" (sub_82411598(action): the
+// profile's slots holding it, each tested in the pad's held buttons; asked
+// for Block, which holds essence back while held, and Strong Attack) tests
+// LB's and RB's slots with other buttons' bits (0x400, 0x800, the sticks'
+// clicks), not 0x1000 and 0x2000: an action on LB or RB is never held for
+// it (#142: Block on RB let essence be absorbed), and a stick's click holds
+// it. (The game's own layouts put only Interact and 1st-Person View there.)
+// Answered here as it does, with LB's and RB's buttons: a button's slot by
+// its bit, a pair's by both of its two.
+REX_EXTERN(__imp__sub_82411598);
+REX_HOOK_RAW(sub_82411598) {
+  using namespace ng2::rebind;
+  using ng2::guest::Load32;
+  uint32_t action = ctx.r3.u32;
+  uint32_t profile = Load32(kProfile);
+  if (profile < 0x40000000u || profile >= 0xA0000000u) {
+    __imp__sub_82411598(ctx, base);
+    return;
+  }
+  // Its pad: the demo's (5) while one plays, else the player's.
+  constexpr uint32_t kDemoMode = 0x83BD1C68, kPlayerPad = 0x84C3DA3E;
+  uint32_t pad = Load32(kDemoMode) == 2 ? 5 : ng2::guest::Virtual(kPlayerPad)[0];
+  uint32_t held = Load32(kPadRecords + kPadRecordSize * pad);
+  // The pair slots' two buttons (A+X, B+Y, X+Y, A+B), as it tests them.
+  constexpr uint32_t kPairBits[4] = {0x10 | 0x40, 0x20 | 0x80, 0x40 | 0x80, 0x10 | 0x20};
+  bool isHeld = false;
+  for (uint32_t slot = 0; slot < kSlotCount && !isHeld; slot++) {
+    if (Load32(profile + kSlots + 4 * slot) != action) {
+      continue;
+    }
+    uint32_t bits = slot < 8 ? Load32(kMasks + 4 * slot) : kPairBits[slot - 8];
+    isHeld = bits != 0 && (held & bits) == bits;
+  }
+  ctx.r3.u64 = isHeld ? 1 : 0;
+}
