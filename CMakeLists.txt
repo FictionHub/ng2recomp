@@ -26,6 +26,31 @@ if(CMAKE_CROSSCOMPILING)
         IMPORTED_LOCATION "${NG2_HOST_REXGLUE}" IMPORTED_LOCATION_RELEASE "${NG2_HOST_REXGLUE}")
 endif()
 
+# A tree whose code was never generated (a fresh clone): rexglue.cmake lists
+# the generated sources only if they exist as it is read, so a first build
+# would generate them and compile none. They are generated now, once, and
+# taken in as rexglue.cmake would have.
+if(NOT REXGLUE_ENTRYPOINT_GENERATED_SOURCES)
+    get_target_property(NG2_CODEGEN_TOOL rex::rexglue IMPORTED_LOCATION_RELEASE)
+    if(NOT NG2_CODEGEN_TOOL)
+        get_target_property(NG2_CODEGEN_TOOL rex::rexglue IMPORTED_LOCATION)
+    endif()
+    message(STATUS "Generating the recompiled code (first configure of this tree)")
+    execute_process(
+        COMMAND "${NG2_CODEGEN_TOOL}" codegen "${CMAKE_CURRENT_SOURCE_DIR}/ng2_manifest.toml"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        RESULT_VARIABLE NG2_CODEGEN_RESULT)
+    if(NOT NG2_CODEGEN_RESULT EQUAL 0 OR
+       NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/default/sources.cmake")
+        message(FATAL_ERROR "Code generation failed (${NG2_CODEGEN_TOOL}): is game_files/ in place?")
+    endif()
+    include(generated/default/sources.cmake)
+    set(REXGLUE_ENTRYPOINT_GENERATED_SOURCES ${GENERATED_SOURCES})
+    set(REXGLUE_ENTRYPOINT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated/default")
+    set_source_files_properties(${REXGLUE_ENTRYPOINT_GENERATED_SOURCES}
+        PROPERTIES COMPILE_OPTIONS "${REXGLUE_RECOMP_OPTIONS}")
+endif()
+
 # Sources
 # Master Edition's camera code (src/camera.cpp) written into the image at start: the records
 # embedded (re-run when the file changes).
