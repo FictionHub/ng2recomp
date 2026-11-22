@@ -1080,6 +1080,7 @@ constexpr float kTitleMenuTop = 432.0f, kTitleMenuPitch = 35.2f;
 void TitleMenuFrame();
 REX_EXTERN(__imp__sub_8366FBC0);
 REX_HOOK_RAW(sub_8366FBC0) {
+  ng2::menu_mouse::NoteStage(false);  // (the title's: no stage)
   // The pointer on an entry: the cursor there (before the menu's update,
   // which lights it); a click on none confirms nothing (its A taken out of
   // the pads' presses for this update).
@@ -1435,7 +1436,7 @@ void RefillPage(PPCContext& ctx, uint8_t* base, const Page& page) {
 // place, on the title's Options screen and in the in-game list, as the NGB
 // recomp's: an action a row, with its two keys and its controller button
 // (rebind.h), then Default Controls. Confirm on a cell waits for a key, or a
-// button (two together for Ninpo and Wind Run); X clears it, Y gives the
+// button (two together for Ninpo and Wind Run); X (Delete) clears it, Y gives the
 // row its defaults.
 constexpr uint32_t kMergedPad = 0x83C08100;  // the pads' buttons: +0 held, +8 pressed
 constexpr uint32_t kButtonMasks[8] = {0x10, 0x20, 0x40, 0x80, 0x1000, 0x2000, 0x4000, 0x8000};
@@ -1467,6 +1468,9 @@ constexpr float kTableTop = 128.0f, kTablePitch = 21.5f;
 uint32_t g_inGameLayer = 0;  // the in-game list's rows' layer (its draw)
 void ShowControls(bool focused, uint32_t layer = 0) {
   namespace rebind = ng2::rebind;
+  // (shown before it takes input: Delete is its Clear from its first frame,
+  // never Y's Default)
+  ng2::menu_mouse::DeleteClears();
   constexpr float kNameX = kTableNameX, kTop = kTableTop, kPitch = kTablePitch, kHelpY = 606.0f;
   constexpr const float (&kCellX)[3] = kTableCellX;
   constexpr int kSize = 0x12;
@@ -1532,6 +1536,7 @@ void ShowControls(bool focused, uint32_t layer = 0) {
 bool RunControls(PPCContext& ctx, uint8_t* base) {
   namespace rebind = ng2::rebind;
   using ng2::guest::Load32;
+  ng2::menu_mouse::DeleteClears();  // (Delete: Clear here, as X)
   using Clock = std::chrono::steady_clock;
   ControlsState& c = g_controls;
   double sound = LoadFloat(kCursorSound);
