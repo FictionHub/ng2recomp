@@ -93,6 +93,7 @@ set(NG2_SOURCES
     src/movie/host_movie.cpp
     src/debug_waits.cpp
     src/room_jump.cpp
+    src/stage_jump.cpp
     src/cheats.cpp
     src/rebind.cpp
     src/menu_mouse.cpp

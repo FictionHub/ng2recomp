@@ -59,6 +59,16 @@ devices, and none of the player's settings or saves.
 - `NG2_ROOM_JUMP=<from>:<to>` swaps a room in the story script (src/room_jump.cpp lists the rooms
   with cutscenes): with the New Game path above, `3:5` plays the cutscene before Chapter 2 at about
   80-110 s.
+- `NG2_CHAPTER=<1-14>` or `NG2_SCENARIO=<scenario>[:<entry>]` starts another scenario in place of
+  Chapter 1's, New Game's or a Chapter 1 save's (src/stage_jump.cpp; experimental, for debugging,
+  also in releases): a scenario is what the game loads at a "stage start", its story,
+  battle, event camera, enemy group and message files. 9-22 are chapters 1-14 (chapter n is 8 + n),
+  31-57 the cutscene rooms, 58-108 Mission Mode's missions (most need the DLC's battle files); a name
+  works too (`chap_05`, `r03_10`). With the New Game path it starts about 45 s after boot, shows the
+  chapter's card and plays its opening. Every start is logged ("scenario start: ...").
+  `tools/stage_sweep.sh <out dir> [scenario ...]` runs them one after another (default: the
+  chapters, 150 s each) and writes `report.txt`, `report.csv` and `sheet.png` (tools/stage_report.py:
+  status, frame rate, GPU time, warnings and errors per scenario).
 - The native renderer draws by default; to compare with Xenia's set `NG2_RENDERER=xenos` and add
   `--gpu_plugin=xenos --headless` (Xenia's draws cutscenes black in this build).
 
