@@ -297,44 +297,33 @@ The build needs the game's code, so it starts from your own disc image. Requirem
 CMake 3.25+, Ninja, Python 3, the Vulkan headers and loader, FFmpeg (libavformat, libavcodec,
 libswresample, libswscale).
 
-1. The ReXGlue SDK, pinned at v0.10.0, with this port's patches:
+1. Clone with its submodules: the ReXGlue SDK, XenosRecomp (the shader translator) and plume (the
+   Vulkan layer of Unleashed Recompiled), each a fork with this port's changes on its `ng2` branch
+   ([rexglue-sdk](https://github.com/gamboozino/rexglue-sdk),
+   [XenosRecomp](https://github.com/gamboozino/XenosRecomp),
+   [plume](https://github.com/gamboozino/plume)). Then build and install the SDK:
 
-       git clone --recursive https://github.com/rexglue/rexglue-sdk thirdparty/rexglue-sdk
-       cd thirdparty/rexglue-sdk && git checkout v0.10.0 && git submodule update --init --recursive
-       git am ../../patches/rexglue-sdk/*.patch
+       git clone --recursive https://github.com/gamboozino/ng2recomp
+       cd ng2recomp/thirdparty/rexglue-sdk
        cmake --preset linux-amd64
        cmake --build out/build/linux-amd64 --config Release --target install
        cd ../..
 
-2. XenosRecomp (the shader translator) and plume (the Vulkan layer of Unleashed Recompiled), with
-   this port's patches:
+   (In a clone made without `--recursive`: `git submodule update --init --recursive`.)
 
-       git clone --recursive https://github.com/hedge-dev/XenosRecomp thirdparty/XenosRecomp
-       cd thirdparty/XenosRecomp && git checkout 990d03b && git submodule update --init --recursive
-       git am ../../patches/xenosrecomp/*.patch
-       cd ../..
-
-       git clone https://github.com/renderbag/plume thirdparty/plume
-       cd thirdparty/plume && git checkout 1192686 && git submodule update --init contrib/volk contrib/VulkanMemoryAllocator contrib/Vulkan-Headers
-       git am ../../patches/plume/*.patch
-       cd ../..
-
-   (`git am` makes commits: it needs a git name and email, `git config --global user.name` and
-   `user.email`.)
-
-3. Extract the disc (or the Games on Demand package) into `game_files/` and put Title Update 3's
+2. Extract the disc (or the Games on Demand package) into `game_files/` and put Title Update 3's
    `default.xexp` next to `default.xex` (see [docs/title-update.md](docs/title-update.md)):
 
        python3 tools/xdvdfs_extract.py "Ninja Gaiden II (World).iso" game_files
        python3 tools/stfs_extract.py TU_1A461UL_000000G000000.00000000000O4 default.xexp game_files/default.xexp
 
-4. Build. This generates about 560 MB of C++ from the game's code and translates its shaders
+3. Build. This generates about 560 MB of C++ from the game's code and translates its shaders
    (see [docs/shaders.md](docs/shaders.md)):
 
        cmake --preset linux-amd64-release
        cmake --build out/build/linux-amd64-release
 
-5. Run it:
+4. Run it:
 
        out/build/linux-amd64-release/ng2 --game_data_root=game_files
 

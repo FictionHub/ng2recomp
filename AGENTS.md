@@ -18,8 +18,9 @@ the rules that keep a test run from disturbing the machine it runs on.
 - `ng2_manifest.toml`, `ng2_codegen.toml`, `ng2_pointer_funcs.toml`: the ReXGlue project: manifest,
   codegen overrides (function boundaries, fibers, setjmp/longjmp), and functions only reached through
   pointers (`tools/find_pointer_funcs.py` on an image dumped with `NG2_DUMP_IMAGE`).
-- `patches/`: changes to the ReXGlue SDK, XenosRecomp and plume (`git am` onto the pinned
-  versions in `thirdparty/`, which aren't committed).
+- `thirdparty/rexglue-sdk`, `XenosRecomp`, `plume`: submodules, forks with this port's changes on
+  their `ng2` branches (a change there is a commit on the fork, pushed, then the submodule's new
+  commit here).
 - `packaging/`: the AppImage (`appimage/build.sh`: the portable one, built in a container;
   `appimage/build-local.sh`: the native build, for this machine only), the Windows build
   (`windows/build.sh`) and their resources. Both packages carry the game built twice, x86-64-v2
