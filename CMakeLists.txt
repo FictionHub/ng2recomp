@@ -94,6 +94,7 @@ set(NG2_SOURCES
     src/debug_waits.cpp
     src/room_jump.cpp
     src/stage_jump.cpp
+    src/base_resolution.cpp
     src/cheats.cpp
     src/rebind.cpp
     src/menu_mouse.cpp
