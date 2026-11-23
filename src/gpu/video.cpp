@@ -132,8 +132,7 @@ REXCVAR_DEFINE_INT32(antialiasing, 2, "Video",
     .range(0, 8);
 REXCVAR_DEFINE_BOOL(cutout_msaa, true, "Video",
                     "With MSAA: cut-out textures (fences, foliage) tested per sample, their "
-                    "edges smoothed like geometry's, instead of each pixel all in or out (off on "
-                    "NVIDIA unless NG2_CUTOUT_MSAA=1)");
+                    "edges smoothed like geometry's, instead of each pixel all in or out");
 REXCVAR_DEFINE_INT32(bloom, 2, "Video", "The game's bloom: 0 off, 1 reduced (half), 2 on")
     .range(0, 2);
 REXCVAR_DEFINE_BOOL(half_pixel_offset, true, "Video",
@@ -3610,6 +3609,21 @@ void DropRoundTowardZero(std::vector<uint8_t>& spirv) {
   std::memcpy(spirv.data(), kept.data(), spirv.size());
 }
 
+// On NVIDIA the shaders that hide cut-off parts interpolate the part id
+// themselves where the GPU has fragment shader barycentrics: its hardware
+// interpolation is a hair off there (speckled cut limbs). Elsewhere the
+// hardware's is exact enough. NG2_BARYCENTRIC=1 or 0 forces it on or off.
+bool UsesBarycentricVariant(const ShaderCacheEntry* entry) {
+  static const bool barycentric = [] {
+    const char* v = std::getenv("NG2_BARYCENTRIC");
+    bool wanted = v ? v[0] == '1' : g_device->getDescription().vendor == RenderDeviceVendor::NVIDIA;
+    bool on = g_device->getCapabilities().fragmentShaderBarycentric && wanted;
+    REXLOG_INFO("video: part ids interpolated {}", on ? "from barycentrics" : "by the hardware");
+    return on;
+  }();
+  return barycentric && entry && entry->barycentricSpirvSize;
+}
+
 RenderShader* HostShader(const ShaderCacheEntry* entry) {
   auto& host = g_hostShaders[entry];
   if (!host) {
@@ -3618,18 +3632,7 @@ RenderShader* HostShader(const ShaderCacheEntry* entry) {
       ZSTD_decompress(g_spirvCache.get(), g_spirvCacheDecompressedSize, g_compressedSpirvCache,
                       g_spirvCacheCompressedSize);
     }
-    // On NVIDIA the shaders that hide cut-off parts interpolate the part id
-    // themselves where the GPU has fragment shader barycentrics: its hardware
-    // interpolation is a hair off there (speckled cut limbs). Elsewhere the
-    // hardware's is exact enough. NG2_BARYCENTRIC=1 or 0 forces it on or off.
-    static const bool barycentric = [] {
-      const char* v = std::getenv("NG2_BARYCENTRIC");
-      bool wanted = v ? v[0] == '1' : g_device->getDescription().vendor == RenderDeviceVendor::NVIDIA;
-      bool on = g_device->getCapabilities().fragmentShaderBarycentric && wanted;
-      REXLOG_INFO("video: part ids interpolated {}", on ? "from barycentrics" : "by the hardware");
-      return on;
-    }();
-    bool variant = barycentric && entry->barycentricSpirvSize;
+    bool variant = UsesBarycentricVariant(entry);
     const uint8_t* encoded =
         g_spirvCache.get() + (variant ? entry->barycentricSpirvOffset : entry->spirvOffset);
     uint32_t encodedSize = variant ? entry->barycentricSpirvSize : entry->spirvSize;
@@ -5014,23 +5017,12 @@ void ListPipeline(uint64_t hash, const PipelineKey& key) {
 
 RenderShader* HostShader(const ShaderCacheEntry* entry);
 
-// cutout_msaa where the GPU can shade per sample. Off by default on NVIDIA:
-// its Windows driver crashed building these pipelines at start (#149).
-// NG2_CUTOUT_MSAA=1 or 0 forces it on or off.
-bool CutoutMsaa() {
-  static const bool on = [] {
-    if (!REXCVAR_GET(cutout_msaa) || !g_device->getCapabilities().sampleRateShading) {
-      return false;
-    }
-    const char* v = std::getenv("NG2_CUTOUT_MSAA");
-    bool nvidia = g_device->getDescription().vendor == RenderDeviceVendor::NVIDIA;
-    bool on = v ? v[0] == '1' : !nvidia;
-    if (!on) {
-      REXLOG_INFO("video: cut-outs per sample off{}", v ? " (NG2_CUTOUT_MSAA)" : " on NVIDIA");
-    }
-    return on;
-  }();
-  return on;
+// cutout_msaa for a pixel shader, where the GPU can shade per sample. Not
+// the shaders drawn with their barycentric variant (NVIDIA): its Windows
+// driver crashed building one per sample (#149).
+bool CutoutMsaa(const ShaderCacheEntry* ps) {
+  static const bool on = REXCVAR_GET(cutout_msaa) && g_device->getCapabilities().sampleRateShading;
+  return on && !UsesBarycentricVariant(ps);
 }
 
 // The pipelines in a list file, asked of the workers. The player's list is
@@ -5093,15 +5085,18 @@ uint32_t AskForListedPipelines(const std::filesystem::path& path, bool seed) {
       }
       key.slopeDepthBias *= ScaleOf(g_resolutionScale);
     }
+    const ShaderCacheEntry* vs = FindShaderCacheEntry(key.vertexShader);
+    const ShaderCacheEntry* ps =
+        key.pixelShader == 1 ? nullptr : FindShaderCacheEntry(key.pixelShader);
+    // A per-sample one recorded while it was on, built plain when it's off.
+    if (key.alphaTest == 2 && !CutoutMsaa(ps)) {
+      key.alphaTest = 1;
+    }
     // Multisampled alpha tests recorded before cutout_msaa (the seed, older lists) or with it
     // off: their per-sample twin too, the reference (only known at the draw) deciding which
     // is used.
-    // A per-sample one recorded while it was on, built plain when it's off.
-    if (key.alphaTest == 2 && !CutoutMsaa()) {
-      key.alphaTest = 1;
-    }
     bool twin = key.alphaTest == 1 && !key.alphaToCoverage && key.samples > 1 &&
-                key.pixelShader != 1 && CutoutMsaa();
+                key.pixelShader != 1 && CutoutMsaa(ps);
     for (int pass = 0; pass < (twin ? 2 : 1); pass++) {
       if (pass == 1) {
         key.alphaTest = 2;
@@ -5110,9 +5105,6 @@ uint32_t AskForListedPipelines(const std::filesystem::path& path, bool seed) {
       if (!g_listedPipelines.insert(hash).second) {
         continue;
       }
-      const ShaderCacheEntry* vs = FindShaderCacheEntry(key.vertexShader);
-      const ShaderCacheEntry* ps =
-          key.pixelShader == 1 ? nullptr : FindShaderCacheEntry(key.pixelShader);
       RenderShader* vertexShader = vs ? HostShader(vs) : nullptr;
       RenderShader* pixelShader = ps ? HostShader(ps) : nullptr;
       if (!vertexShader || (key.pixelShader != 1 && !pixelShader)) {
@@ -6004,7 +5996,7 @@ void Draw(uint32_t device, uint32_t primitive, uint32_t startVertex, uint32_t co
   // alpha tests, all effects, none at 1/16 or above.)
   if (key.alphaTest && !key.alphaToCoverage && ps && key.samples > 1 &&
       (uint32_t(colorControl.alpha_func) == 4 || uint32_t(colorControl.alpha_func) == 6) &&
-      shared.alphaThreshold >= 0.1f && CutoutMsaa()) {
+      shared.alphaThreshold >= 0.1f && CutoutMsaa(ps->entry)) {
     key.alphaTest = 2;
   }
   // =all colors the skinned draws only (bones in fetch slot 94): other
