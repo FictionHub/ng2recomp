@@ -482,6 +482,22 @@ static void BarrierWake(uint8_t* byte) {
 
 REX_EXTERN(__imp__sub_83774800);
 REX_HOOK_RAW(sub_83774800) {
+#if defined(_WIN32)
+  // NG2_TEST_AUDIO_PRIORITY=1 (#17): XAudio2's workers (the threads that meet
+  // here every pass) at a higher priority than the game's other threads, so
+  // a CPU too busy for all of them slows the frames instead of the sound.
+  static const bool raise = [] {
+    const char* v = std::getenv("NG2_TEST_AUDIO_PRIORITY");
+    return v && v[0] == '1';
+  }();
+  thread_local bool raised = false;
+  if (raise && !raised) {
+    raised = true;
+    bool ok = SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST) != 0;
+    REXLOG_INFO("audio: worker thread {} at a higher priority{}", GetCurrentThreadId(),
+                ok ? "" : " (failed)");
+  }
+#endif
   // NG2_GAME_AUDIO_BARRIER=1: the game's own barrier (for comparisons).
   static const bool original = [] {
     const char* v = std::getenv("NG2_GAME_AUDIO_BARRIER");
