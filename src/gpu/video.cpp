@@ -130,6 +130,9 @@ REXCVAR_DEFINE_INT32(antialiasing, 2, "Video",
                      "MSAA samples for the render targets the game multisamples (its main "
                      "picture): 0 off, 2 as the game, 4 or 8")
     .range(0, 8);
+REXCVAR_DEFINE_BOOL(cutout_msaa, true, "Video",
+                    "With MSAA: cut-out textures (fences, foliage) tested per sample, their "
+                    "edges smoothed like geometry's, instead of each pixel all in or out");
 REXCVAR_DEFINE_INT32(bloom, 2, "Video", "The game's bloom: 0 off, 1 reduced (half), 2 on")
     .range(0, 2);
 REXCVAR_DEFINE_BOOL(half_pixel_offset, true, "Video",
@@ -4844,6 +4847,8 @@ std::unique_ptr<RenderPipeline> MakePipeline(const PipelineKey& key, RenderShade
   }
   desc.multisampling.sampleCount = RenderSampleCounts(key.samples);
   desc.alphaToCoverageEnabled = key.alphaToCoverage != 0;
+  // alphaTest 2: a cut-out shaded once per sample (cutout_msaa).
+  desc.sampleShadingEnabled = key.alphaTest == 2;
   RenderSpecConstant specConstant(0, key.alphaTest ? 0x2u : 0u);  // SPEC_CONSTANT_ALPHA_TEST
   desc.specConstants = &specConstant;
   desc.specConstantsCount = 1;
@@ -5068,19 +5073,31 @@ uint32_t AskForListedPipelines(const std::filesystem::path& path, bool seed) {
       }
       key.slopeDepthBias *= ScaleOf(g_resolutionScale);
     }
-    uint64_t hash = XXH3_64bits(&key, sizeof(key));
-    if (!g_listedPipelines.insert(hash).second) {
-      continue;
+    // Multisampled alpha tests recorded before cutout_msaa (the seed, older lists) or with it
+    // off: their per-sample twin too, the reference (only known at the draw) deciding which
+    // is used.
+    bool twin = key.alphaTest == 1 && !key.alphaToCoverage && key.samples > 1 &&
+                key.pixelShader != 1 && REXCVAR_GET(cutout_msaa) &&
+                g_device->getCapabilities().sampleRateShading;
+    for (int pass = 0; pass < (twin ? 2 : 1); pass++) {
+      if (pass == 1) {
+        key.alphaTest = 2;
+      }
+      uint64_t hash = XXH3_64bits(&key, sizeof(key));
+      if (!g_listedPipelines.insert(hash).second) {
+        continue;
+      }
+      const ShaderCacheEntry* vs = FindShaderCacheEntry(key.vertexShader);
+      const ShaderCacheEntry* ps =
+          key.pixelShader == 1 ? nullptr : FindShaderCacheEntry(key.pixelShader);
+      RenderShader* vertexShader = vs ? HostShader(vs) : nullptr;
+      RenderShader* pixelShader = ps ? HostShader(ps) : nullptr;
+      if (!vertexShader || (key.pixelShader != 1 && !pixelShader)) {
+        break;
+      }
+      AskForPipeline(hash, key, vertexShader, pixelShader, true);
+      asked++;
     }
-    const ShaderCacheEntry* vs = FindShaderCacheEntry(key.vertexShader);
-    const ShaderCacheEntry* ps = key.pixelShader == 1 ? nullptr : FindShaderCacheEntry(key.pixelShader);
-    RenderShader* vertexShader = vs ? HostShader(vs) : nullptr;
-    RenderShader* pixelShader = ps ? HostShader(ps) : nullptr;
-    if (!vertexShader || (key.pixelShader != 1 && !pixelShader)) {
-      continue;
-    }
-    AskForPipeline(hash, key, vertexShader, pixelShader, true);
-    asked++;
   }
   std::fclose(f);
   return asked;
@@ -5952,6 +5969,23 @@ void Draw(uint32_t device, uint32_t primitive, uint32_t startVertex, uint32_t co
                 key.slopeDepthBias);
   key.alphaTest = colorControl.alpha_test_enable;
   key.alphaToCoverage = ps && colorControl.alpha_to_mask_enable;  // needs a fragment shader
+  // A cut-out (alpha tested against a reference well above 0) drawn
+  // multisampled: its pixel shader runs once per sample (cutout_msaa), so
+  // each sample takes its own texture read and test and MSAA smooths its
+  // edges as it does geometry's, instead of each pixel all in or out (a far
+  // fence's wires broke up and crawled). Only these draws pay the extra
+  // shading; their depth-only passes too, so a later depth-equal color pass
+  // finds the same samples. A reference near 0 ("any alpha at all", mostly
+  // blended effects) keeps the plain test: its edges don't show. (Measured:
+  // foliage tests at 0.25; a Mission 1 fight with ninpo had 17 multisampled
+  // alpha tests, all effects, none at 1/16 or above.)
+  static const bool sampleShading = g_device->getCapabilities().sampleRateShading;
+  if (key.alphaTest && !key.alphaToCoverage && ps && key.samples > 1 && sampleShading &&
+      (uint32_t(colorControl.alpha_func) == 4 || uint32_t(colorControl.alpha_func) == 6) &&
+      shared.alphaThreshold >= 0.1f &&
+      REXCVAR_GET(cutout_msaa)) {
+    key.alphaTest = 2;
+  }
   // =all colors the skinned draws only (bones in fetch slot 94): other
   // shaders include full-screen passes that would cover them.
   bool skinned = (vs->entry->vertexFetchMask[2] >> 30) & 1;
