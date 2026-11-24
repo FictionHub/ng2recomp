@@ -7621,13 +7621,17 @@ void DisplayClockThread() {
       // panel's.
       bool ownFrames = false;
       if (double hz = g_displayModeHz.load(); steady && hz > 0 && runUnits >= 60u * every && !UnderGamescope()) {
-        ownFrames = std::abs(1e9 / period - hz) > hz * 0.03;
+        // (against the nearest whole number of the measured rate: a 360 Hz
+        // panel, counted one frame at a time, measures a real 60 Hz)
+        double measured = 1e9 / period;
+        double n = std::max(1.0, std::floor(hz / measured + 0.5));
+        ownFrames = std::abs(measured * n - hz) > hz * 0.03;
         static bool logged = false;
         if (ownFrames && !logged) {
           logged = true;
           REXLOG_INFO("video: display clock follows the game's frames ({:.2f} Hz on a {:.2f} Hz display: variable "
                       "refresh?): not taken as the display's refreshes",
-                      1e9 / period, hz);
+                      measured, hz);
         }
       }
       g_displayPeriodNs.store(int64_t(period));  // (a refresh: the lock takes every few)
