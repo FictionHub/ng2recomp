@@ -7612,9 +7612,27 @@ void DisplayClockThread() {
         }
         windowUnits = 0, windowUneven = 0;
       }
+      // Not the display's refreshes when the rate measured isn't the display
+      // mode's: with variable refresh (G-SYNC, FreeSync) the screen shows each
+      // frame as it comes, so these are the game's own frame times, steady
+      // near 60 Hz on a 144 Hz panel. Frame Pacing Auto locked the guest's
+      // vblanks to them and the game ran away from itself, up to 68 fps
+      // (#153). Not under gamescope, whose reported rate isn't always the
+      // panel's.
+      bool ownFrames = false;
+      if (double hz = g_displayModeHz.load(); steady && hz > 0 && runUnits >= 60u * every && !UnderGamescope()) {
+        ownFrames = std::abs(1e9 / period - hz) > hz * 0.03;
+        static bool logged = false;
+        if (ownFrames && !logged) {
+          logged = true;
+          REXLOG_INFO("video: display clock follows the game's frames ({:.2f} Hz on a {:.2f} Hz display: variable "
+                      "refresh?): not taken as the display's refreshes",
+                      1e9 / period, hz);
+        }
+      }
       g_displayPeriodNs.store(int64_t(period));  // (a refresh: the lock takes every few)
       g_displayRefreshNs.store(t);
-      g_displaySteady.store(steady);
+      g_displaySteady.store(steady && !ownFrames);
     }
     last = t;
     if (t - secondStart > 1'000'000'000) {
